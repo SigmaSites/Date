@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en" translate = "no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <title>Will You Go On A Date?</title>
+  <meta name="description" content="A very small proposal.">
+  <link rel="preconnect" href="https://fonts.googleapis.com/">
+  <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .cat-fallback { font-size: 5rem; line-height: 1; margin-bottom: 1.5rem; }
+    button:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+  </style>
+</head>
+<body>
+<div id="root">
+<main class="paper-grain min-h-[100dvh] overflow-hidden px-5 py-8 text-foreground sm:px-8">
+  <div class="romantic-glow romantic-glow-left" aria-hidden="true"></div>
+  <div class="romantic-glow romantic-glow-right" aria-hidden="true"></div>
+
+  <header class="relative mx-auto flex w-full max-w-4xl items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="h-3 w-3 rotate-45 bg-primary"></div>
+      <span class="font-semibold tracking-[-0.02em]">a very small proposal</span>
+    </div>
+    <div id="stepLabel" class="font-[Kalam] text-sm text-muted-foreground">little step 1 of 5</div>
+  </header>
+
+  <div class="mx-auto mt-8 h-1.5 w-full max-w-4xl overflow-hidden rounded-full bg-[#ead8ca]">
+    <div id="bar" class="h-full rounded-full bg-primary transition-[width] duration-500" style="width: 20%;"></div>
+  </div>
+
+  <section id="section" class="relative mx-auto flex min-h-[calc(100dvh-150px)] w-full max-w-4xl items-center justify-center py-10"></section>
+  <footer id="footer" class="relative mx-auto flex w-full max-w-xl items-center justify-between pb-5"></footer>
+</main>
+</div>
+
+<script>
+// ===================== EINSTELLUNG =====================
+// 1) Auf https://formspree.io ein kostenloses Formular anlegen
+// 2) Die URL hier eintragen, z. B. "https://formspree.io/f/abcdwxyz"
+// Dann kommen die Antworten inkl. Telefonnummer per Mail bei dir an.
+const FORM_ENDPOINT = "aaa";
+// =======================================================
+
+const $ = (id) => document.getElementById(id);
+const section = $("section"), footer = $("footer"), bar = $("bar"), label = $("stepLabel");
+
+const state = { food: null, flowers: null, date: null, phone: "", noTries: 0 };
+let step = 1;
+
+const FOOD = [
+  { id: "pasta",  title: "Pasta place", sub: "twirly noodles, no judgment",   img: "pasta.png",   alt: "Pasta place inspiration" },
+  { id: "pizza",  title: "Pizza",       sub: "one slice becomes three",       img: "pizza.png",   alt: "Pizza inspiration" },
+  { id: "german", title: "Deutsch",     sub: "schnitzel, braten, no regrets", img: "deutsch.png", alt: "Deutsche Küche" },
+  { id: "burger", title: "Burger",      sub: "both hands required",           img: "burger.png",  alt: "Burger" },
+];
+const FLOWERS = [
+  { id: "pink", title: "Pink bouquet", sub: "soft, sweet, and very pretty", img: "pink-bouquet.png", alt: "Pink bouquet inspiration" },
+  { id: "yellow", title: "Yellow bouquet", sub: "bright enough to fix any bad day", img: "yellow-bouquet.png", alt: "Yellow bouquet inspiration" },
+  { id: "blue", title: "Blue bouquet", sub: "a little dreamy and unexpected", img: "blue-bouquet.png", alt: "Blue bouquet inspiration" },
+  { id: "red", title: "Red bouquet", sub: "dramatic in the nicest possible way", img: "red-bouquet.png", alt: "Red bouquet inspiration" }
+];
+const DATES = [
+  { id: "14", dow: "FRI", day: "14", mon: "JUN" },
+  { id: "15", dow: "SAT", day: "15", mon: "JUN" },
+  { id: "21", dow: "FRI", day: "21", mon: "JUN" },
+  { id: "23", dow: "SUN", day: "23", mon: "JUN" }
+];
+
+const IMG = "assets/";
+const H2 = "text-5xl font-semibold leading-[.95] tracking-[-0.06em] sm:text-7xl";
+const BTN_NEXT = "rounded-full bg-foreground px-7 py-3 font-semibold text-background shadow-[3px_4px_0_0_#f28b76] transition-transform hover:-translate-y-0.5";
+const BTN_BACK = "rounded-full px-4 py-3 font-semibold text-muted-foreground underline decoration-secondary decoration-2 underline-offset-4 transition-colors hover:text-foreground";
+
+async function send(data) {
+  try {
+    const log = JSON.parse(localStorage.getItem("dateLog") || "[]");
+    log.push({ ...data, time: new Date().toISOString() });
+    localStorage.setItem("dateLog", JSON.stringify(log));
+  } catch (e) {}
+  if (!FORM_ENDPOINT) return true;
+  try {
+    const r = await fetch(FORM_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(data)
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
+
+function frame(n) {
+  step = n;
+  bar.style.width = n * 20 + "%";
+  label.textContent = "little step " + n + " of 5";
+  footer.innerHTML = "";
+  footer.classList.toggle("hidden", n === 1);
+}
+
+function footerButtons(nextText, nextHandler, ready) {
+  footer.innerHTML = `
+    <button type="button" id="back" class="${BTN_BACK}">back</button>
+    <div class="text-right"><button type="button" id="next" class="${BTN_NEXT}" ${ready ? "" : "disabled"}>${nextText}</button></div>`;
+  $("back").onclick = () => go(step - 1);
+  $("next").onclick = nextHandler;
+}
+
+function setSection(html, maxW) {
+  section.innerHTML = `<div class="step-enter ${maxW}" id="stage">${html}</div>`;
+}
+
+/* ---------------- Schritt 1 ---------------- */
+function step1() {
+  frame(1);
+  section.innerHTML = `
+  <div class="step-enter relative w-full max-w-2xl text-center">
+    <span class="bob absolute -left-2 top-0 hidden -rotate-12 font-[Kalam] text-lg text-primary sm:block">this is important</span>
+    <img alt="A cute cat wearing fluffy bunny ears" src="${IMG}cat.png"
+      class="mx-auto mb-8 h-36 w-36 rotate-2 rounded-[2rem] border-2 border-foreground object-cover shadow-[6px_7px_0_0_#34252b] sm:h-44 sm:w-44"
+      onerror="this.outerHTML='<div class=&quot;cat-fallback&quot;>🐱</div>'">
+    <p class="mb-5 font-[Kalam] text-xl text-primary">okay, hear me out...</p>
+    <h1 class="mx-auto max-w-2xl text-[clamp(3.3rem,11vw,7rem)] font-semibold leading-[.88] tracking-[-0.08em]">Will you go on a date with me?</h1>
+    <p class="mx-auto mt-7 max-w-sm text-base leading-relaxed text-muted-foreground">I made you this tiny website because a normal text felt suspiciously ordinary.</p>
+    <div class="relative mx-auto mt-10 flex min-h-20 max-w-md items-center justify-center gap-4">
+      <button id="yes" type="button" class="wiggle rounded-full bg-primary px-9 py-4 text-lg font-bold text-primary-foreground shadow-[4px_5px_0_0_#34252b] transition-transform hover:-translate-y-1 active:translate-y-0">Yes, obviously</button>
+      <button id="no" type="button" class="rounded-full border-2 border-foreground bg-card px-7 py-3 font-semibold transition-transform duration-300" style="transform: translate(0px, 0px);">No</button>
+    </div>
+    <p id="shy" class="mt-4 font-[Kalam] text-sm text-muted-foreground">the second button is shy</p>
+  </div>`;
+
+  const no = $("no"), shy = $("shy");
+  const lines = ["the second button is shy", "it really doesn't want to be clicked", "still shy", "okay, it's getting tired", "just press yes, it's fine"];
+  const dodge = (e) => {
+    e.preventDefault();
+    state.noTries++;
+    shy.textContent = lines[Math.min(state.noTries, lines.length - 1)];
+    const dx = (Math.random() < .5 ? -1 : 1) * (70 + Math.random() * 110);
+    const dy = (Math.random() < .5 ? -1 : 1) * (40 + Math.random() * 90);
+    no.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  ["pointerenter", "touchstart", "click"].forEach(ev => no.addEventListener(ev, dodge, { passive: false }));
+
+  $("yes").onclick = () => {
+    send({ event: "said yes", no_attempts: state.noTries });
+    go(2);
+  };
+}
+
+/* ---------------- Auswahl-Schritte mit Bildern ---------------- */
+function imageStep(n, hand, title, subtitle, items, key, bg, layout) {
+  frame(n);
+  const horizontal = layout === "row";
+  const cards = items.map(o => {
+    const sel = state[key] === o.id;
+    const cls = horizontal ? "flex min-h-32 items-center gap-4 p-3" : "flex flex-col p-3";
+    const imgCls = horizontal
+      ? "h-24 w-24 shrink-0 rotate-[-2deg] rounded-xl border-2 border-foreground object-cover shadow-[2px_3px_0_0_#dcb9a8] sm:h-28 sm:w-28"
+      : "aspect-[4/3] w-full rounded-xl border-2 border-foreground object-cover shadow-[2px_3px_0_0_#dcb9a8]";
+    const txtCls = horizontal ? "min-w-0 flex-1 " : "min-w-0 flex-1 w-full px-2 pb-2 pt-4";
+    return `
+      <button type="button" data-id="${o.id}" data-selected="${sel}" class="option-card overflow-hidden rounded-2xl border-2 border-foreground bg-card text-left shadow-[3px_4px_0_0_#dcb9a8] hover:shadow-[5px_6px_0_0_#dcb9a8] ${cls}" ${sel ? `style="background-color:${bg}"` : ""}>
+        <img alt="${o.alt}" class="${imgCls}" src="${IMG}${o.img}">
+        <span class="${txtCls}">
+          <span class="block text-lg font-bold">${o.title}</span>
+          <span class="mt-1 block text-sm text-muted-foreground">${o.sub}</span>
+          <span class="mt-3 block font-[Kalam] text-xl text-primary">${sel ? "yes, this one" : "pick me"}</span>
+        </span>
+      </button>`;
+  }).join("");
+
+  setSection(`
+    <p class="mb-3 font-[Kalam] text-xl text-primary">${hand}</p>
+    <h2 class="${H2}">${title}</h2>
+    <p class="mt-5 text-muted-foreground">${subtitle}</p>
+    <div class="mt-9 grid grid-cols-1 gap-3 sm:grid-cols-2">${cards}</div>
+    <span class="sr-only">Question ${n}</span>`, "w-full max-w-3xl");
+
+  section.querySelectorAll("[data-id]").forEach(b => b.onclick = () => {
+    state[key] = b.dataset.id;
+    imageStep(n, hand, title, subtitle, items, key, bg, layout);
+  });
+  footerButtons("Next little thing", () => go(n + 1), !!state[key]);
+}
+
+function step2() {
+  imageStep(2, "first, the important stuff", "What shall we eat?", "Choose your ideal kind of delicious.", FOOD, "food", "rgb(226, 199, 223)", "row");
+}
+function step3() {
+  imageStep(3, "a small detail", "Which flowers should I bring?", "I will try very hard not to forget them.", FLOWERS, "flowers", "rgb(242, 189, 207)", "col");
+}
+
+/* ---------------- Schritt 4: Datum ---------------- */
+function step4() {
+  frame(4);
+  const cards = DATES.map(d => {
+    const sel = state.date === d.id;
+    return `
+      <button type="button" data-id="${d.id}" data-selected="${sel}" class="option-card rounded-2xl border-2 border-foreground bg-card p-4 text-left shadow-[3px_4px_0_0_#dcb9a8]" ${sel ? 'style="background-color:rgb(184, 221, 210)"' : ""}>
+        <span class="block text-xs font-bold tracking-[0.16em] text-muted-foreground">${d.dow}</span>
+        <span class="mt-2 block text-5xl font-semibold tracking-[-0.08em]">${d.day}</span>
+        <span class="mt-1 block font-[Kalam] text-lg text-primary">${d.mon}</span>
+      </button>`;
+  }).join("");
+  setSection(`
+    <p class="mb-3 font-[Kalam] text-xl text-primary">now, find a day</p>
+    <h2 class="${H2}">When are you free?</h2>
+    <p class="mt-5 text-muted-foreground">I have a feeling one of these could work beautifully.</p>
+    <div class="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">${cards}</div>`, "w-full max-w-3xl");
+  section.querySelectorAll("[data-id]").forEach(b => b.onclick = () => { state.date = b.dataset.id; step4(); });
+  footerButtons("Next little thing", () => go(5), !!state.date);
+}
+
+/* ---------------- Schritt 5: Telefonnummer ---------------- */
+function step5() {
+  frame(5);
+  setSection(`
+    <p class="mb-3 font-[Kalam] text-xl text-primary">last practical question</p>
+    <h2 class="${H2}">Where should I text you?</h2>
+    <p class="mt-5 max-w-md leading-relaxed text-muted-foreground">Just your number, so I can send you the extremely official details.</p>
+    <label class="mt-9 block">
+      <span class="mb-2 block text-sm font-semibold">your phone number</span>
+      <input id="phone" placeholder="(555) 123-4567" type="tel" autocomplete="tel" value="${state.phone.replace(/"/g, "&quot;")}"
+        class="w-full rounded-2xl border-2 border-foreground bg-card px-5 py-4 text-xl outline-none transition-shadow placeholder:text-muted-foreground/60 focus:ring-4 focus:ring-primary/20">
+    </label>
+    <p id="err" class="mt-3 font-[Kalam] text-sm text-primary" role="status"></p>`, "w-full max-w-xl");
+
+  const input = $("phone");
+  const sync = () => { state.phone = input.value; $("next").disabled = input.value.trim().length < 5; };
+  footerButtons("Send the details", submit, state.phone.trim().length >= 5);
+  input.addEventListener("input", sync);
+  input.focus();
+}
+
+async function submit() {
+  const btn = $("next");
+  btn.disabled = true; btn.textContent = "sending…";
+  const food = FOOD.find(x => x.id === state.food), fl = FLOWERS.find(x => x.id === state.flowers), dt = DATES.find(x => x.id === state.date);
+  const ok = await send({
+    event: "final answers",
+    essen: food && food.title,
+    blumen: fl && fl.title,
+    datum: dt && `${dt.dow} ${dt.day} ${dt.mon}`,
+    telefon: state.phone,
+    nein_versuche: state.noTries
+  });
+  if (ok) return done();
+  $("err").textContent = "that didn't go through, try again?";
+  btn.disabled = false; btn.textContent = "Send the details";
+}
+
+function done() {
+  step = 6;
+  bar.style.width = "100%";
+  footer.classList.add("hidden");
+  setSection(`
+    <div class="cat-fallback" aria-hidden="true">💌</div>
+    <p class="mb-3 font-[Kalam] text-xl text-primary">it's official</p>
+    <h2 class="${H2}">It's a date.</h2>
+    <p class="mx-auto mt-5 max-w-md leading-relaxed text-muted-foreground">I'll text you the extremely official details very soon.</p>`, "w-full max-w-xl text-center");
+}
+
+function go(n) {
+  if (n < 1) n = 1;
+  [null, step1, step2, step3, step4, step5][n]();
+  window.scrollTo(0, 0);
+}
+
+go(1);
+</script>
+</body>
+</html>
